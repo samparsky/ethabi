@@ -7,6 +7,7 @@ use serde::de::{Visitor, SeqAccess};
 use serde_json;
 use operation::Operation;
 use {errors, ErrorKind, Event, Constructor, Function};
+use Hash;
 
 /// API building calls to contracts ABI.
 #[derive(Clone, Debug, PartialEq)]
