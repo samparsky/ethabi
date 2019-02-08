@@ -316,6 +316,15 @@ bool false";
 
 	#[test]
 	fn log_decode() {
+		let command = "ethabi decode log ../res/event.abi Event -l 0000000000000000000000000000000000000000000000000000000000000001 0000000000000000000000004444444444444444444444444444444444444444".split(" ");
+		let expected =
+"a true
+b 4444444444444444444444444444444444444444";
+		assert_eq!(execute(command).unwrap(), expected);
+	}
+
+	#[test]
+	fn log_decode_signature() {
 		let command = "ethabi decode log ../res/event.abi Event(bool,address) -l 0000000000000000000000000000000000000000000000000000000000000001 0000000000000000000000004444444444444444444444444444444444444444".split(" ");
 		let expected =
 "a true
