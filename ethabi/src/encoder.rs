@@ -37,26 +37,33 @@ enum Mediate {
 	Prefixed(Vec<[u8; 32]>),
 	FixedArray(Vec<Mediate>),
 	Array(Vec<Mediate>),
+    Tuple(Vec<Mediate>),
 }
 
 impl Mediate {
-	fn init_len(&self) -> u32 {
-		match *self {
-			Mediate::Raw(ref raw) => 32 * raw.len() as u32,
-			Mediate::Prefixed(_) => 32,
-			Mediate::FixedArray(ref nes) => nes.iter().fold(0, |acc, m| acc + m.init_len()),
-			Mediate::Array(_) => 32,
-		}
-	}
+    fn init_len(&self) -> u32 {
+        match *self {
+            Mediate::Raw(ref raw) => 32 * raw.len() as u32,
+            Mediate::Prefixed(_) => 32,
+            Mediate::FixedArray(ref nes) => nes.iter().fold(0, |acc, m| acc + m.init_len()),
+            Mediate::Array(_) => 32,
+            Mediate::Tuple(_) => 32,
+        }
+    }
 
-	fn closing_len(&self) -> u32 {
-		match *self {
-			Mediate::Raw(_) => 0,
-			Mediate::Prefixed(ref pre) => pre.len() as u32 * 32,
-			Mediate::FixedArray(ref nes) => nes.iter().fold(0, |acc, m| acc + m.closing_len()),
-			Mediate::Array(ref nes) => nes.iter().fold(32, |acc, m| acc + m.init_len() + m.closing_len()),
-		}
-	}
+    fn closing_len(&self) -> u32 {
+        match *self {
+            Mediate::Raw(_) => 0,
+            Mediate::Prefixed(ref pre) => pre.len() as u32 * 32,
+            Mediate::FixedArray(ref nes) => nes.iter().fold(0, |acc, m| acc + m.closing_len()),
+            Mediate::Array(ref nes) => nes
+                .iter()
+                .fold(32, |acc, m| acc + m.init_len() + m.closing_len()),
+            Mediate::Tuple(ref nes) => nes
+                .iter()
+                .fold(32, |acc, m| acc + m.init_len() + m.closing_len()),
+        }
+    }
 
 	fn offset_for(mediates: &[Mediate], position: usize) -> u32 {
 		assert!(position < mediates.len());
@@ -74,7 +81,7 @@ impl Mediate {
 					.flat_map(|(i, m)| m.init(Mediate::offset_for(nes, i)))
 					.collect()
 			},
-			Mediate::Prefixed(_) | Mediate::Array(_) => {
+			Mediate::Prefixed(_) | Mediate::Array(_) | Mediate::Tuple(_)=> {
 				vec![pad_u32(suffix_offset)]
 			}
 		}
@@ -92,20 +99,21 @@ impl Mediate {
 					.flat_map(|(i, m)| m.closing(Mediate::offset_for(nes, i)))
 					.collect()
 			},
-			Mediate::Array(ref nes) => {
+			Mediate::Array(ref nes) | Mediate::Tuple(ref nes) => {
 				// + 32 added to offset represents len of the array prepanded to closing
 				let prefix = vec![pad_u32(nes.len() as u32)].into_iter();
 
 				let inits = nes.iter()
 					.enumerate()
-					.flat_map(|(i, m)| m.init(offset + Mediate::offset_for(nes, i) + 32));
+					.flat_map(|(i, m)| m.init(Mediate::offset_for(nes, i)));
 
-				let closings = nes.iter()
-					.enumerate()
-					.flat_map(|(i, m)| m.closing(offset + Mediate::offset_for(nes, i)));
+                let closings = nes
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(i, m)| m.closing(offset + Mediate::offset_for(nes, i)));
 
-				prefix.chain(inits).chain(closings).collect()
-			},
+                prefix.chain(inits).chain(closings).collect()
+            }
 		}
 	}
 }
@@ -162,7 +170,12 @@ fn encode_token(token: &Token) -> Mediate {
 
 			Mediate::FixedArray(mediates)
 		},
-	}
+        Token::Tuple(ref tokens) => {
+            let mediates = tokens.iter().map(encode_token).collect();
+
+            Mediate::Tuple(mediates)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -273,8 +286,8 @@ mod tests {
 		let expected = hex!("
 			0000000000000000000000000000000000000000000000000000000000000020
 			0000000000000000000000000000000000000000000000000000000000000002
+			0000000000000000000000000000000000000000000000000000000000000040
 			0000000000000000000000000000000000000000000000000000000000000080
-			00000000000000000000000000000000000000000000000000000000000000c0
 			0000000000000000000000000000000000000000000000000000000000000001
 			0000000000000000000000001111111111111111111111111111111111111111
 			0000000000000000000000000000000000000000000000000000000000000001
@@ -296,8 +309,8 @@ mod tests {
 		let expected = hex!("
 			0000000000000000000000000000000000000000000000000000000000000020
 			0000000000000000000000000000000000000000000000000000000000000002
-			0000000000000000000000000000000000000000000000000000000000000080
-			00000000000000000000000000000000000000000000000000000000000000e0
+			0000000000000000000000000000000000000000000000000000000000000040
+			00000000000000000000000000000000000000000000000000000000000000a0
 			0000000000000000000000000000000000000000000000000000000000000002
 			0000000000000000000000001111111111111111111111111111111111111111
 			0000000000000000000000002222222222222222222222222222222222222222
@@ -351,10 +364,10 @@ mod tests {
 			0000000000000000000000000000000000000000000000000000000000000040
 			00000000000000000000000000000000000000000000000000000000000000a0
 			0000000000000000000000000000000000000000000000000000000000000001
-			0000000000000000000000000000000000000000000000000000000000000080
+			0000000000000000000000000000000000000000000000000000000000000020
 			0000000000000000000000000000000000000000000000000000000000000000
 			0000000000000000000000000000000000000000000000000000000000000001
-			00000000000000000000000000000000000000000000000000000000000000e0
+			0000000000000000000000000000000000000000000000000000000000000020
 			0000000000000000000000000000000000000000000000000000000000000000
 		").to_vec();
 		assert_eq!(encoded, expected);
@@ -534,5 +547,54 @@ mod tests {
 		").to_vec();
 		assert_eq!(encoded, expected);
 	}
+
+    #[test]
+    fn encode_dynamic_array_of_bytes() {
+        let bytes =
+            hex!("019c80031b20d5e69c8093a571162299032018d913930d93ab320ae5ea44a4218a274f00d607");
+        let encoded = encode(&vec![Token::Array(vec![Token::Bytes(bytes.to_vec())])]);
+
+        let expected = hex!(
+            "
+			0000000000000000000000000000000000000000000000000000000000000020
+			0000000000000000000000000000000000000000000000000000000000000001
+			0000000000000000000000000000000000000000000000000000000000000020
+			0000000000000000000000000000000000000000000000000000000000000026
+			019c80031b20d5e69c8093a571162299032018d913930d93ab320ae5ea44a421
+			8a274f00d6070000000000000000000000000000000000000000000000000000
+		"
+        )
+        .to_vec();
+        assert_eq!(encoded, expected);
+    }
+
+    #[test]
+    fn encode_dynamic_array_of_bytes2() {
+        let bytes =
+            hex!("4444444444444444444444444444444444444444444444444444444444444444444444444444");
+        let bytes2 =
+            hex!("6666666666666666666666666666666666666666666666666666666666666666666666666666");
+        let encoded = encode(&vec![Token::Array(vec![
+            Token::Bytes(bytes.to_vec()),
+            Token::Bytes(bytes2.to_vec()),
+        ])]);
+
+        let expected = hex!(
+            "
+			0000000000000000000000000000000000000000000000000000000000000020
+			0000000000000000000000000000000000000000000000000000000000000002
+			0000000000000000000000000000000000000000000000000000000000000040
+			00000000000000000000000000000000000000000000000000000000000000a0
+			0000000000000000000000000000000000000000000000000000000000000026
+			4444444444444444444444444444444444444444444444444444444444444444
+			4444444444440000000000000000000000000000000000000000000000000000
+			0000000000000000000000000000000000000000000000000000000000000026
+			6666666666666666666666666666666666666666666666666666666666666666
+			6666666666660000000000000000000000000000000000000000000000000000
+		"
+        )
+        .to_vec();
+        assert_eq!(encoded, expected);
+    }
 }
 
