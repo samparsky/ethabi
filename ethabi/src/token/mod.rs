@@ -27,6 +27,7 @@ pub trait Tokenizer {
             ParamType::FixedArray(ref p, len) => {
                 Self::tokenize_fixed_array(value, p, len).map(Token::FixedArray)
             }
+            ParamType::Struct(ref p) => Self::tokenize_struct(value, p).map(Token::Struct),
         }
         .chain_err(|| format!("Cannot parse {}", param))
     }
@@ -42,6 +43,69 @@ pub trait Tokenizer {
             true => Ok(result),
             false => Err(ErrorKind::InvalidData.into()),
         }
+    }
+
+    fn tokenize_struct(value: &str, param: &Vec<Box<ParamType>>) -> Result<Vec<Token>, Error> {
+        if !value.starts_with('[') || !value.ends_with(']') {
+            return Err(ErrorKind::InvalidData.into());
+        }
+
+        if value.chars().count() == 2 {
+            return Ok(vec![]);
+        }
+
+        //        let mut tokens = param.len();
+
+        let mut result = vec![];
+        let mut nested = 0isize;
+        let mut ignore = false;
+        let mut last_item = 1;
+        let mut params = param.iter();
+        for (pos, ch) in value.chars().enumerate() {
+            match ch {
+                //                _ if tokens >= param.len() => {
+                //                    return Err(ErrorKind::InvalidData.into());
+                //                }
+                '[' if ignore == false => {
+                    nested += 1;
+                }
+                ']' if ignore == false => {
+                    nested -= 1;
+                    if nested < 0 {
+                        return Err(ErrorKind::InvalidData.into());
+                    } else if nested == 0 {
+                        let sub = &value[last_item..pos];
+                        let token = Self::tokenize(
+                            params.next().ok_or(ErrorKind::InvalidData)?,
+                            sub,
+                        )?;
+                        result.push(token);
+                        //                        tokens += 1;
+                        last_item = pos + 1;
+                    }
+                }
+                '"' => {
+                    ignore = !ignore;
+                }
+                ',' if nested == 1 && ignore == false => {
+                    let sub = &value[last_item..pos];
+                    let token = Self::tokenize(
+                        params.next().ok_or(ErrorKind::InvalidData)?,
+                        sub
+                    )?;
+                    result.push(token);
+                    //                    tokens += 1;
+                    last_item = pos + 1;
+                }
+                _ => (),
+            }
+        }
+
+        if ignore {
+            return Err(ErrorKind::InvalidData.into());
+        }
+
+        Ok(result)
     }
 
     /// Tries to parse a value as a vector of tokens.

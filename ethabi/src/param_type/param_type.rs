@@ -24,6 +24,9 @@ pub enum ParamType {
     FixedBytes(usize),
     /// Array with fixed size.
     FixedArray(Box<ParamType>, usize),
+
+    /// Struct containing different types
+    Struct(Vec<Box<ParamType>>),
 }
 
 impl fmt::Display for ParamType {

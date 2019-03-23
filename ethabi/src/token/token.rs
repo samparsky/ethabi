@@ -50,6 +50,8 @@ pub enum Token {
     ///
     /// solidity name eg. int[], bool[], address[5][]
     Array(Vec<Token>),
+
+    Struct(Vec<Token>),
 }
 
 impl fmt::Display for Token {
@@ -70,6 +72,15 @@ impl fmt::Display for Token {
                     .join(",");
 
                 write!(f, "[{}]", s)
+            }
+            Token::Struct(ref s) => {
+                let s = s
+                    .iter()
+                    .map(|ref t| format!("{}", t))
+                    .collect::<Vec<String>>()
+                    .join(",");
+
+                write!(f, "({})", s)
             }
         }
     }
@@ -117,6 +128,16 @@ impl Token {
             Token::FixedArray(ref tokens) => {
                 if let ParamType::FixedArray(ref param_type, size) = *param_type {
                     size == tokens.len() && tokens.iter().all(|t| t.type_check(param_type))
+                } else {
+                    false
+                }
+            }
+            Token::Struct(ref tokens) => {
+                if let ParamType::Struct(ref param_type) = *param_type {
+                    tokens
+                        .iter()
+                        .enumerate()
+                        .all(|(i, t)| t.type_check(&param_type[i]))
                 } else {
                     false
                 }
