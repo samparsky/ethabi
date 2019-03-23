@@ -37,26 +37,33 @@ enum Mediate {
 	Prefixed(Vec<[u8; 32]>),
 	FixedArray(Vec<Mediate>),
 	Array(Vec<Mediate>),
+    Tuple(Vec<Mediate>),
 }
 
 impl Mediate {
-	fn init_len(&self) -> u32 {
-		match *self {
-			Mediate::Raw(ref raw) => 32 * raw.len() as u32,
-			Mediate::Prefixed(_) => 32,
-			Mediate::FixedArray(ref nes) => nes.iter().fold(0, |acc, m| acc + m.init_len()),
-			Mediate::Array(_) => 32,
-		}
-	}
+    fn init_len(&self) -> u32 {
+        match *self {
+            Mediate::Raw(ref raw) => 32 * raw.len() as u32,
+            Mediate::Prefixed(_) => 32,
+            Mediate::FixedArray(ref nes) => nes.iter().fold(0, |acc, m| acc + m.init_len()),
+            Mediate::Array(_) => 32,
+            Mediate::Tuple(_) => 32,
+        }
+    }
 
-	fn closing_len(&self) -> u32 {
-		match *self {
-			Mediate::Raw(_) => 0,
-			Mediate::Prefixed(ref pre) => pre.len() as u32 * 32,
-			Mediate::FixedArray(ref nes) => nes.iter().fold(0, |acc, m| acc + m.closing_len()),
-			Mediate::Array(ref nes) => nes.iter().fold(32, |acc, m| acc + m.init_len() + m.closing_len()),
-		}
-	}
+    fn closing_len(&self) -> u32 {
+        match *self {
+            Mediate::Raw(_) => 0,
+            Mediate::Prefixed(ref pre) => pre.len() as u32 * 32,
+            Mediate::FixedArray(ref nes) => nes.iter().fold(0, |acc, m| acc + m.closing_len()),
+            Mediate::Array(ref nes) => nes
+                .iter()
+                .fold(32, |acc, m| acc + m.init_len() + m.closing_len()),
+            Mediate::Tuple(ref nes) => nes
+                .iter()
+                .fold(32, |acc, m| acc + m.init_len() + m.closing_len()),
+        }
+    }
 
 	fn offset_for(mediates: &[Mediate], position: usize) -> u32 {
 		assert!(position < mediates.len());
@@ -74,7 +81,7 @@ impl Mediate {
 					.flat_map(|(i, m)| m.init(Mediate::offset_for(nes, i)))
 					.collect()
 			},
-			Mediate::Prefixed(_) | Mediate::Array(_) => {
+			Mediate::Prefixed(_) | Mediate::Array(_) | Mediate::Tuple(_)=> {
 				vec![pad_u32(suffix_offset)]
 			}
 		}
@@ -92,7 +99,7 @@ impl Mediate {
 					.flat_map(|(i, m)| m.closing(Mediate::offset_for(nes, i)))
 					.collect()
 			},
-			Mediate::Array(ref nes) => {
+			Mediate::Array(ref nes) | Mediate::Tuple(ref nes) => {
 				// + 32 added to offset represents len of the array prepanded to closing
 				let prefix = vec![pad_u32(nes.len() as u32)].into_iter();
 
@@ -100,12 +107,13 @@ impl Mediate {
 					.enumerate()
 					.flat_map(|(i, m)| m.init(Mediate::offset_for(nes, i)));
 
-				let closings = nes.iter()
-					.enumerate()
-					.flat_map(|(i, m)| m.closing(offset + Mediate::offset_for(nes, i)));
+                let closings = nes
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(i, m)| m.closing(offset + Mediate::offset_for(nes, i)));
 
-				prefix.chain(inits).chain(closings).collect()
-			},
+                prefix.chain(inits).chain(closings).collect()
+            }
 		}
 	}
 }
@@ -162,7 +170,12 @@ fn encode_token(token: &Token) -> Mediate {
 
 			Mediate::FixedArray(mediates)
 		},
-	}
+        Token::Tuple(ref tokens) => {
+            let mediates = tokens.iter().map(encode_token).collect();
+
+            Mediate::Tuple(mediates)
+        }
+    }
 }
 
 #[cfg(test)]
