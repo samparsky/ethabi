@@ -212,7 +212,7 @@ fn decode_param(
 
             Ok(result)
         }
-        ParamType::Struct(ref t) => {
+        ParamType::Tuple(ref t) => {
             let offset_slice = try!(peek(slices, offset));
             let len_offset = (try!(as_u32(offset_slice)) / 32) as usize;
 
@@ -231,7 +231,7 @@ fn decode_param(
             }
 
             let result = DecodeResult {
-                token: Token::Struct(tokens),
+                token: Token::Tuple(tokens),
                 new_offset: offset + 1,
             };
 

@@ -50,8 +50,10 @@ pub enum Token {
     ///
     /// solidity name eg. int[], bool[], address[5][]
     Array(Vec<Token>),
-
-    Struct(Vec<Token>),
+    /// Tuple of params with variable type
+    ///
+    /// solidity name: tuple
+    Tuple(Vec<Token>),
 }
 
 impl fmt::Display for Token {
@@ -73,7 +75,7 @@ impl fmt::Display for Token {
 
                 write!(f, "[{}]", s)
             }
-            Token::Struct(ref s) => {
+            Token::Tuple(ref s) => {
                 let s = s
                     .iter()
                     .map(|ref t| format!("{}", t))
@@ -132,8 +134,8 @@ impl Token {
                     false
                 }
             }
-            Token::Struct(ref tokens) => {
-                if let ParamType::Struct(ref param_type) = *param_type {
+            Token::Tuple(ref tokens) => {
+                if let ParamType::Tuple(ref param_type) = *param_type {
                     tokens
                         .iter()
                         .enumerate()

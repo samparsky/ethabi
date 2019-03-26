@@ -37,7 +37,7 @@ enum Mediate {
     Prefixed(Vec<[u8; 32]>),
     FixedArray(Vec<Mediate>),
     Array(Vec<Mediate>),
-    Struct(Vec<Mediate>),
+    Tuple(Vec<Mediate>),
 }
 
 impl Mediate {
@@ -47,7 +47,7 @@ impl Mediate {
             Mediate::Prefixed(_) => 32,
             Mediate::FixedArray(ref nes) => nes.iter().fold(0, |acc, m| acc + m.init_len()),
             Mediate::Array(_) => 32,
-            Mediate::Struct(_) => 32,
+            Mediate::Tuple(_) => 32,
         }
     }
 
@@ -59,7 +59,7 @@ impl Mediate {
             Mediate::Array(ref nes) => nes
                 .iter()
                 .fold(32, |acc, m| acc + m.init_len() + m.closing_len()),
-            Mediate::Struct(ref nes) => nes
+            Mediate::Tuple(ref nes) => nes
                 .iter()
                 .fold(32, |acc, m| acc + m.init_len() + m.closing_len()),
         }
@@ -82,11 +82,11 @@ impl Mediate {
                 .enumerate()
                 .flat_map(|(i, m)| m.init(Mediate::offset_for(nes, i)))
                 .collect(),
-            Mediate::Prefixed(_) | Mediate::Array(_) | Mediate::Struct(_) =>
-                vec![pad_u32(suffix_offset)],
+            Mediate::Prefixed(_) | Mediate::Array(_) | Mediate::Tuple(_) => {
+                vec![pad_u32(suffix_offset)]
             }
         }
-
+    }
 
     fn closing(&self, offset: u32) -> Vec<[u8; 32]> {
         match *self {
@@ -116,7 +116,7 @@ impl Mediate {
 
                 prefix.chain(inits).chain(closings).collect()
             }
-            Mediate::Struct(ref nes) => {
+            Mediate::Tuple(ref nes) => {
                 // + 32 added to offset represents len of the array prepanded to closing
                 let prefix = vec![pad_u32(nes.len() as u32)].into_iter();
 
@@ -185,10 +185,10 @@ fn encode_token(token: &Token) -> Mediate {
 
             Mediate::FixedArray(mediates)
         }
-        Token::Struct(ref tokens) => {
+        Token::Tuple(ref tokens) => {
             let mediates = tokens.iter().map(encode_token).collect();
 
-            Mediate::Struct(mediates)
+            Mediate::Tuple(mediates)
         }
     }
 }

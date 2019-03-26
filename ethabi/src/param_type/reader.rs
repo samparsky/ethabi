@@ -38,7 +38,7 @@ impl Reader {
                         _ => (),
                     }
                 }
-                return Ok(ParamType::Struct(subtypes));
+                return Ok(ParamType::Tuple(subtypes));
             }
             // check if it is a fixed or dynamic array.
             Some(']') => {
@@ -74,7 +74,7 @@ impl Reader {
             "bool" => ParamType::Bool,
             "string" => ParamType::String,
             "int" => ParamType::Int(256),
-            "tuple" => ParamType::Struct(vec![]),
+            "tuple" => ParamType::Tuple(vec![]),
             "uint" => ParamType::Uint(256),
             s if s.starts_with("int") => {
                 let len = try!(usize::from_str_radix(&s[3..], 10));
@@ -173,14 +173,14 @@ mod tests {
     fn test_read_struct_param() {
         assert_eq!(
             Reader::read("{address,bool}").unwrap(),
-            ParamType::Struct(vec![
+            ParamType::Tuple(vec![
                 Box::new(ParamType::Address),
                 Box::new(ParamType::Bool)
             ])
         );
         assert_eq!(
             Reader::read("{bool[3],uint256}").unwrap(),
-            ParamType::Struct(vec![
+            ParamType::Tuple(vec![
                 Box::new(ParamType::FixedArray(Box::new(ParamType::Bool), 3)),
                 Box::new(ParamType::Uint(256))
             ])

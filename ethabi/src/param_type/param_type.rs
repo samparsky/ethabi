@@ -25,8 +25,8 @@ pub enum ParamType {
     /// Array with fixed size.
     FixedArray(Box<ParamType>, usize),
 
-    /// Struct containing different types
-    Struct(Vec<Box<ParamType>>),
+    /// Tuple containing different types
+    Tuple(Vec<Box<ParamType>>),
 }
 
 impl fmt::Display for ParamType {
