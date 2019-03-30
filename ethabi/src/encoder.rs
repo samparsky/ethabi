@@ -100,23 +100,7 @@ impl Mediate {
                     .flat_map(|(i, m)| m.closing(Mediate::offset_for(nes, i)))
                     .collect()
             }
-            Mediate::Array(ref nes) => {
-                // + 32 added to offset represents len of the array prepanded to closing
-                let prefix = vec![pad_u32(nes.len() as u32)].into_iter();
-
-                let inits = nes
-                    .iter()
-                    .enumerate()
-                    .flat_map(|(i, m)| m.init(Mediate::offset_for(nes, i)));
-
-                let closings = nes
-                    .iter()
-                    .enumerate()
-                    .flat_map(|(i, m)| m.closing(offset + Mediate::offset_for(nes, i)));
-
-                prefix.chain(inits).chain(closings).collect()
-            }
-            Mediate::Tuple(ref nes) => {
+            Mediate::Array(ref nes) | Mediate::Tuple(ref nes) => {
                 // + 32 added to offset represents len of the array prepanded to closing
                 let prefix = vec![pad_u32(nes.len() as u32)].into_iter();
 
