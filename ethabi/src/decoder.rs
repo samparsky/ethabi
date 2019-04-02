@@ -54,6 +54,40 @@ pub fn decode(types: &[ParamType], data: &[u8]) -> Result<Vec<Token>, Error> {
 	Ok(tokens)
 }
 
+/// Decodes ABI compliant vector of bytes into vector of tokens described by types param.
+/// Assumes the types to decode are indexed and the byte data is from an event topic.
+pub fn decode_topic(types: &[ParamType], data: &[u8]) -> Result<Vec<Token>, Error> {
+	  let is_empty_bytes_valid_encoding = types.iter().all(|t| t.is_empty_bytes_valid_encoding());
+	  if !is_empty_bytes_valid_encoding && data.is_empty() {
+		    bail!(
+			      "please ensure the contract and method you're calling exist! \
+			       failed to decode empty bytes topic. \
+			       if you're using jsonrpc this is likely due to jsonrpc returning \
+			       `0x` in case contract or method don't exist"
+		    );
+	  }
+
+	  let mut tokens = vec![];
+	  let mut offset = 0;
+
+	  for param in types {
+        let topic_param = match param {
+            ParamType::Bytes => &ParamType::FixedBytes(32),
+            ParamType::String => &ParamType::FixedBytes(32),
+            ParamType::Array(_) => &ParamType::FixedBytes(32),
+            ParamType::FixedArray(_, _) => &ParamType::FixedBytes(32),
+            _ => param,
+        };
+
+		    let res = decode_param(topic_param, data, offset)
+          .chain_err(|| format!("Cannot decode {} as {}", param, topic_param))?;
+		    offset = res.new_offset;
+		    tokens.push(res.token);
+	  }
+
+	  Ok(tokens)
+}
+
 fn peek(data: &[u8], offset: usize, len: usize) -> Result<&[u8], Error> {
 	if offset + len > data.len() {
 		return Err(ErrorKind::InvalidData.into());

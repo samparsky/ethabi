@@ -42,7 +42,7 @@ pub use contract::{Contract, Functions, Events};
 pub use token::Token;
 pub use errors::{Error, ErrorKind, Result, ResultExt};
 pub use encoder::encode;
-pub use decoder::decode;
+pub use decoder::{decode, decode_topic};
 pub use filter::{Topic, TopicFilter, RawTopicFilter};
 pub use function::Function;
 pub use param::Param;

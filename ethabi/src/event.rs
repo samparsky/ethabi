@@ -5,8 +5,8 @@ use tiny_keccak::keccak256;
 use signature::long_signature;
 use {
 	Log, Hash, RawLog, LogParam, RawTopicFilter, TopicFilter,
-	Topic, ParamType, EventParam, encode, decode, Token,
-	Result, ErrorKind
+	Topic, ParamType, EventParam, encode, decode, decode_topic,
+  Token, Result, ErrorKind
 };
 
 /// Contract event.
@@ -132,7 +132,7 @@ impl Event {
 			.flat_map(|t| t.to_vec())
 			.collect::<Vec<u8>>();
 
-		let topic_tokens = try!(decode(&topic_types, &flat_topics));
+		let topic_tokens = try!(decode_topic(&topic_types, &flat_topics));
 
 		// topic may be only a 32 bytes encoded token
 		if topic_tokens.len() != topics_len - to_skip {
@@ -201,15 +201,41 @@ mod tests {
 				name: "d".to_owned(),
 				kind: ParamType::Address,
 				indexed: true,
-			}],
+			}, EventParam {
+        name: "e".to_owned(),
+        kind: ParamType::String,
+        indexed: true,
+      }, EventParam {
+        name: "f".to_owned(),
+        kind: ParamType::Array(Box::new(ParamType::Int(256))),
+        indexed: true
+      }, EventParam {
+        name: "g".to_owned(),
+        kind: ParamType::FixedArray(Box::new(ParamType::Address), 5),
+        indexed: true,
+      }],
 			anonymous: false,
 		};
 
 		let log = RawLog {
 			topics: vec![
-				long_signature("foo", &[ParamType::Int(256), ParamType::Int(256), ParamType::Address, ParamType::Address]),
+				long_signature(
+          "foo",
+          &[
+            ParamType::Int(256),
+            ParamType::Int(256),
+            ParamType::Address,
+            ParamType::Address,
+            ParamType::String,
+            ParamType::Array(Box::new(ParamType::Int(256))),
+            ParamType::FixedArray(Box::new(ParamType::Address), 5),
+          ]
+        ),
 				"0000000000000000000000000000000000000000000000000000000000000002".into(),
 				"0000000000000000000000001111111111111111111111111111111111111111".into(),
+				"00000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+				"00000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
+				"00000000000000000ccccccccccccccccccccccccccccccccccccccccccccccc".into(),
 			],
 			data:
 			("".to_owned() +
@@ -223,6 +249,9 @@ mod tests {
 			("b".to_owned(), Token::Int("0000000000000000000000000000000000000000000000000000000000000002".into())),
 			("c".to_owned(), Token::Address("2222222222222222222222222222222222222222".into())),
 			("d".to_owned(), Token::Address("1111111111111111111111111111111111111111".into())),
+			("e".to_owned(), Token::FixedBytes("00000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".from_hex().unwrap())),
+			("f".to_owned(), Token::FixedBytes("00000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".from_hex().unwrap())),
+			("g".to_owned(), Token::FixedBytes("00000000000000000ccccccccccccccccccccccccccccccccccccccccccccccc".from_hex().unwrap())),
 		].into_iter().map(|(name, value)| LogParam { name, value }).collect::<Vec<_>>()});
 	}
 }
