@@ -172,14 +172,14 @@ mod tests {
     #[test]
     fn test_read_struct_param() {
         assert_eq!(
-            Reader::read("{address,bool}").unwrap(),
+            Reader::read("[address,bool]").unwrap(),
             ParamType::Tuple(vec![
                 Box::new(ParamType::Address),
                 Box::new(ParamType::Bool)
             ])
         );
         assert_eq!(
-            Reader::read("{bool[3],uint256}").unwrap(),
+            Reader::read("[bool[3],uint256]").unwrap(),
             ParamType::Tuple(vec![
                 Box::new(ParamType::FixedArray(Box::new(ParamType::Bool), 3)),
                 Box::new(ParamType::Uint(256))
