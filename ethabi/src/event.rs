@@ -134,7 +134,6 @@ impl Event {
             .skip(to_skip)
             .flat_map(|t| t.to_vec())
             .collect::<Vec<u8>>();
-
         let topic_tokens = try!(decode(&topic_types, &flat_topics));
 
         // topic may be only a 32 bytes encoded token
