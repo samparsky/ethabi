@@ -37,7 +37,8 @@ enum Mediate {
 	Prefixed(Vec<[u8; 32]>),
 	FixedArray(Vec<Mediate>),
 	Array(Vec<Mediate>),
-    Tuple(Vec<Mediate>),
+    RawTuple(Vec<Mediate>),
+    PrefixedTuple(Vec<Mediate>),
 }
 
 impl Mediate {
@@ -47,7 +48,8 @@ impl Mediate {
             Mediate::Prefixed(_) => 32,
             Mediate::FixedArray(ref nes) => nes.iter().fold(0, |acc, m| acc + m.init_len()),
             Mediate::Array(_) => 32,
-            Mediate::Tuple(_) => 32,
+            Mediate::RawTuple(_) => 32,
+            Mediate::PrefixedTuple(_) => 32,
         }
     }
 
@@ -59,7 +61,10 @@ impl Mediate {
             Mediate::Array(ref nes) => nes
                 .iter()
                 .fold(32, |acc, m| acc + m.init_len() + m.closing_len()),
-            Mediate::Tuple(ref nes) => nes
+            Mediate::RawTuple(ref nes) => nes
+                .iter()
+                .fold(32, |acc, m| acc + m.init_len() + m.closing_len()),
+            Mediate::PrefixedTuple(ref nes) => nes
                 .iter()
                 .fold(32, |acc, m| acc + m.init_len() + m.closing_len()),
         }
@@ -75,13 +80,13 @@ impl Mediate {
 	fn init(&self, suffix_offset: u32) -> Vec<[u8; 32]> {
 		match *self {
 			Mediate::Raw(ref raw) => raw.clone(),
-			Mediate::FixedArray(ref nes) => {
+			Mediate::FixedArray(ref nes) | Mediate::RawTuple(ref nes) => {
 				nes.iter()
 					.enumerate()
 					.flat_map(|(i, m)| m.init(Mediate::offset_for(nes, i)))
 					.collect()
 			},
-			Mediate::Prefixed(_) | Mediate::Array(_) | Mediate::Tuple(_)=> {
+			Mediate::Prefixed(_) | Mediate::Array(_) | Mediate::PrefixedTuple(_)=> {
 				vec![pad_u32(suffix_offset)]
 			}
 		}
@@ -91,7 +96,7 @@ impl Mediate {
 		match *self {
 			Mediate::Raw(_) => vec![],
 			Mediate::Prefixed(ref pre) => pre.clone(),
-			Mediate::FixedArray(ref nes) => {
+			Mediate::FixedArray(ref nes) | Mediate::RawTuple(ref nes) => {
 				// offset is not taken into account, cause it would be counted twice
 				// fixed array is just raw representations of similar consecutive items
 				nes.iter()
@@ -99,7 +104,7 @@ impl Mediate {
 					.flat_map(|(i, m)| m.closing(Mediate::offset_for(nes, i)))
 					.collect()
 			},
-			Mediate::Array(ref nes) | Mediate::Tuple(ref nes) => {
+			Mediate::Array(ref nes) => {
 				// + 32 added to offset represents len of the array prepanded to closing
 				let prefix = vec![pad_u32(nes.len() as u32)].into_iter();
 
@@ -114,8 +119,21 @@ impl Mediate {
 
                 prefix.chain(inits).chain(closings).collect()
             }
-		}
-	}
+            Mediate::PrefixedTuple(ref nes) => {
+                let inits = nes
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(i, m)| m.init(Mediate::offset_for(nes, i)));
+
+                let closings = nes
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(i, m)| m.closing(offset + Mediate::offset_for(nes, i)));
+
+                inits.chain(closings).collect()
+            }
+        }
+    }
 }
 
 /// Encodes vector of tokens into ABI compliant vector of bytes.
@@ -170,10 +188,15 @@ fn encode_token(token: &Token) -> Mediate {
 
 			Mediate::FixedArray(mediates)
 		},
+        Token::Tuple(ref tokens) if token.is_dynamic() => {
+            let mediates = tokens.iter().map(encode_token).collect();
+
+            Mediate::PrefixedTuple(mediates)
+        },
         Token::Tuple(ref tokens) => {
             let mediates = tokens.iter().map(encode_token).collect();
 
-            Mediate::Tuple(mediates)
+            Mediate::RawTuple(mediates)
         }
     }
 }
