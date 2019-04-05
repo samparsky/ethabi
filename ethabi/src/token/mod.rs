@@ -38,7 +38,7 @@ pub trait Tokenizer {
 
 	/// Tried to parse a struct as a vector of tokens
     fn tokenize_struct(value: &str, param: &Vec<Box<ParamType>>) -> Result<Vec<Token>, Error> {
-        if !value.starts_with('[') || !value.ends_with(']') {
+        if !value.starts_with('(') || !value.ends_with(')') {
             return Err(ErrorKind::InvalidData.into());
         }
 
@@ -53,13 +53,10 @@ pub trait Tokenizer {
         let mut params = param.iter();
         for (pos, ch) in value.chars().enumerate() {
             match ch {
-                //                _ if tokens >= param.len() => {
-                //                    return Err(ErrorKind::InvalidData.into());
-                //                }
-                '[' if ignore == false => {
+                '(' if ignore == false => {
                     nested += 1;
                 }
-                ']' if ignore == false => {
+                ')' if ignore == false => {
                     nested -= 1;
                     if nested < 0 {
                         return Err(ErrorKind::InvalidData.into());
@@ -68,7 +65,6 @@ pub trait Tokenizer {
                         let token =
                             Self::tokenize(params.next().ok_or(ErrorKind::InvalidData)?, sub)?;
                         result.push(token);
-                        //                        tokens += 1;
                         last_item = pos + 1;
                     }
                 }
@@ -79,7 +75,6 @@ pub trait Tokenizer {
                     let sub = &value[last_item..pos];
                     let token = Self::tokenize(params.next().ok_or(ErrorKind::InvalidData)?, sub)?;
                     result.push(token);
-                    //                    tokens += 1;
                     last_item = pos + 1;
                 }
                 _ => (),
