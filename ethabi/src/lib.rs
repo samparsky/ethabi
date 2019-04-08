@@ -34,7 +34,7 @@ mod log;
 mod operation;
 mod param;
 mod signature;
-mod tuple_params;
+mod tuple_param;
 mod util;
 
 pub use param_type::ParamType;
@@ -50,7 +50,7 @@ pub use param::Param;
 pub use log::{Log, RawLog, LogParam, ParseLog, LogFilter};
 pub use event::Event;
 pub use event_param::EventParam;
-pub use tuple_params::TupleParams;
+pub use tuple_param::TupleParam;
 
 /// ABI address.
 pub type Address = ethereum_types::Address;
