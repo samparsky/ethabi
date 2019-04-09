@@ -1,16 +1,10 @@
 //! ABI decoder.
 
-use util::slice_data;
 use {Error, ErrorKind, ParamType, ResultExt, Token};
 
 #[derive(Debug)]
 struct DecodeResult {
 	token: Token,
-	new_offset: usize,
-}
-
-struct BytesTaken {
-	bytes: Vec<u8>,
 	new_offset: usize,
 }
 
@@ -196,9 +190,9 @@ fn decode_param(
 			// The first element in a dynamic Tuple is an offset to the Tuple's data
 			// For a static Tuple the data begins right away
 			let (slices, mut new_offset) = if is_dynamic {
-				(&slices[as_usize(&peek_32_bytes(data, offset)?)?..],0)
+				(&data[as_usize(&peek_32_bytes(data, offset)?)?..],0)
             } else {
-				(slices,offset)
+				(data,offset)
             };
 
             let len = t.len();
