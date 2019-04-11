@@ -227,15 +227,15 @@ fn decode_log(path: &str, name_or_signature: &str, topics: &[String], data: &str
 
 
 fn hash_signature(sig: &str) -> Hash {
-    let mut result = [0u8; 32];
-    let data = sig.replace(" ", "").into_bytes();
-    let mut sponge = Keccak::new_keccak256();
-    sponge.update(&data);
-    sponge.finalize(&mut result);
+	let mut result = [0u8; 32];
+	let data = sig.replace(" ", "").into_bytes();
+	let mut sponge = Keccak::new_keccak256();
+	sponge.update(&data);
+	sponge.finalize(&mut result);
 
-    // This was deprecated but the replacement seems to not be available.
-    #[allow(deprecated)]
-    Hash::from_slice(&result)
+	// This was deprecated but the replacement seems to not be available.
+	#[allow(deprecated)]
+	Hash::from_slice(&result)
 }
 
 #[cfg(test)]
