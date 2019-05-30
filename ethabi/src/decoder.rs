@@ -80,7 +80,7 @@ fn take_bytes(data: &[u8], offset: usize, len: usize) -> Result<Vec<u8>, Error> 
 	}
 }
 
-fn take_bytes_maybe(data: &[u8], offset: usize, len: usize) -> Result<Vec<u8>, Error> {
+fn take_up_to_bytes(data: &[u8], offset: usize, len: usize) -> Result<Vec<u8>, Error> {
 	let not_enough_data = (offset + len) > data.len();
 	if not_enough_data {
 		Ok((&data[offset..]).to_vec())
@@ -134,7 +134,7 @@ fn decode_param(
 			// FixedBytes is anything from bytes1 to bytes32. These values
 			// are padded with trailing zeros to fill 32 bytes.
 			let bytes = if is_last_param {
-				take_bytes_maybe(data, offset, len)?
+				take_up_to_bytes(data, offset, len)?
 			} else {
 				take_bytes(data, offset, len)?
 			};
