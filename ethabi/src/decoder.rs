@@ -71,15 +71,22 @@ fn peek_32_bytes(data: &[u8], offset: usize) -> Result<[u8; 32], Error> {
 	})
 }
 
-fn take_bytes(data: &[u8], offset: usize, len: usize, pad_data: bool) -> Result<Vec<u8>, Error> {
+fn take_bytes(data: &[u8], offset: usize, len: usize) -> Result<Vec<u8>, Error> {
 	let not_enough_data = (offset + len) > data.len();
-	if not_enough_data && pad_data {
+	if not_enough_data {
+		Err(ErrorKind::InvalidData.into())
+	} else {
+		Ok((&data[offset..(offset + len)]).to_vec())
+	}
+}
+
+fn take_bytes_maybe_pad(data: &[u8], offset: usize, len: usize) -> Result<Vec<u8>, Error> {
+	let not_enough_data = (offset + len) > data.len();
+	if not_enough_data {
 		let mut padded = data[offset..].to_vec();
 		let pad_length = (offset + len) - data.len();
 		padded.append(&mut vec![0; pad_length]);
 		Ok(padded)
-	} else if not_enough_data {
-		Err(ErrorKind::InvalidData.into())
 	} else {
 		Ok((&data[offset..(offset + len)]).to_vec())
 	}
@@ -89,7 +96,7 @@ fn decode_param(
 	param: &ParamType,
 	data: &[u8],
 	offset: usize,
-	is_last: bool,
+	is_last_param: bool,
 ) -> Result<DecodeResult, Error> {
 	match *param {
 		ParamType::Address => {
@@ -129,8 +136,11 @@ fn decode_param(
 		ParamType::FixedBytes(len) => {
 			// FixedBytes is anything from bytes1 to bytes32. These values
 			// are padded with trailing zeros to fill 32 bytes.
-			if data.len() < len && is_last {}
-			let bytes = take_bytes(data, offset, len, is_last)?;
+			let bytes = if is_last_param {
+				take_bytes_maybe_pad(data, offset, len)?
+			} else {
+				take_bytes(data, offset, len)?
+			};
 			let result = DecodeResult {
 				token: Token::FixedBytes(bytes),
 				new_offset: offset + 32,
@@ -140,7 +150,7 @@ fn decode_param(
 		ParamType::Bytes => {
 			let dynamic_offset = as_usize(&peek_32_bytes(data, offset)?)?;
 			let len = as_usize(&peek_32_bytes(data, dynamic_offset)?)?;
-			let bytes = take_bytes(data, dynamic_offset + 32, len, false)?;
+			let bytes = take_bytes(data, dynamic_offset + 32, len)?;
 			let result = DecodeResult {
 				token: Token::Bytes(bytes),
 				new_offset: offset + 32,
@@ -150,7 +160,7 @@ fn decode_param(
 		ParamType::String => {
 			let dynamic_offset = as_usize(&peek_32_bytes(data, offset)?)?;
 			let len = as_usize(&peek_32_bytes(data, dynamic_offset)?)?;
-			let bytes = take_bytes(data, dynamic_offset + 32, len, false)?;
+			let bytes = take_bytes(data, dynamic_offset + 32, len)?;
 			let result = DecodeResult {
 				token: Token::String(String::from_utf8(bytes)?),
 				new_offset: offset + 32,
