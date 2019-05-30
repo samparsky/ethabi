@@ -80,13 +80,10 @@ fn take_bytes(data: &[u8], offset: usize, len: usize) -> Result<Vec<u8>, Error> 
 	}
 }
 
-fn take_bytes_maybe_pad(data: &[u8], offset: usize, len: usize) -> Result<Vec<u8>, Error> {
+fn take_bytes_maybe(data: &[u8], offset: usize, len: usize) -> Result<Vec<u8>, Error> {
 	let not_enough_data = (offset + len) > data.len();
 	if not_enough_data {
-		let mut padded = data[offset..].to_vec();
-		let pad_length = (offset + len) - data.len();
-		padded.append(&mut vec![0; pad_length]);
-		Ok(padded)
+		Ok((&data[offset..]).to_vec())
 	} else {
 		Ok((&data[offset..(offset + len)]).to_vec())
 	}
@@ -137,7 +134,7 @@ fn decode_param(
 			// FixedBytes is anything from bytes1 to bytes32. These values
 			// are padded with trailing zeros to fill 32 bytes.
 			let bytes = if is_last_param {
-				take_bytes_maybe_pad(data, offset, len)?
+				take_bytes_maybe(data, offset, len)?
 			} else {
 				take_bytes(data, offset, len)?
 			};
@@ -879,11 +876,11 @@ mod tests {
 
 	#[test]
 	fn decode_fixed_bytes_with_less_than_expected_bytes() {
-		let encoded = hex!("0000");
+		let encoded = hex!("00000000");
 
 		assert_eq!(
 			decode(&[ParamType::FixedBytes(16)], &encoded).unwrap(),
-			&[Token::FixedBytes([0u8; 16].to_vec())]
+			&[Token::FixedBytes([0u8; 4].to_vec())]
 		);
 	}
 }
