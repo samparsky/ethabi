@@ -866,4 +866,14 @@ mod tests {
 			]
 		);
 	}
+
+	#[test]
+	fn decode_fixed_bytes_with_less_than_expected_bytes() {
+		let encoded = hex!("0000");
+
+		assert_eq!(
+			decode(&[ParamType::FixedBytes(16)], &encoded).unwrap(),
+			&[Token::FixedBytes([0u8; 16].to_vec())]
+		);
+	}
 }
